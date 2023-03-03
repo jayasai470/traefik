@@ -120,6 +120,28 @@ tracing:
 --tracing.openTelemetry.path=/foo/v1/traces
 ```
 
+#### `enableAWSXrayId`
+
+_Optional, Default="false"_
+
+Enables AWS Xray ID generator and propagator to send compatible traces to AWS X-ray backend.
+
+```yaml tab="File (YAML)"
+tracing:
+  openTelemetry:
+    enableAWSXrayId: true
+```
+
+```toml tab="File (TOML)"
+[tracing]
+  [tracing.openTelemetry]
+    enableAWSXrayId = true
+```
+
+```bash tab="CLI"
+--tracing.openTelemetry.enableAWSXrayId=true
+```
+
 #### `tls`
 
 _Optional_

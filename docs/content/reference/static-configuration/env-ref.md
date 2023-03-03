@@ -1155,6 +1155,9 @@ Disables client transport security for the exporter. (Default: ```false```)
 `TRAEFIK_TRACING_OPENTELEMETRY_PATH`:  
 Sets the URL path of the collector endpoint.
 
+`TRAEFIK_TRACING_OPENTELEMETRY_ENABLE_AWS_XRAY_ID`:
+Enables AWS X-ray id generator.
+
 `TRAEFIK_TRACING_OPENTELEMETRY_TLS_CA`:  
 TLS CA
 

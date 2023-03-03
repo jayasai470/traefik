@@ -446,6 +446,7 @@ tracing:
       name1: foobar
     insecure: true
     path: foobar
+    enableAWSXrayId: true
     tls:
       ca: foobar
       caOptional: true

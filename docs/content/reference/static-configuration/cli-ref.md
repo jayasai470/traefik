@@ -1155,6 +1155,9 @@ Disables client transport security for the exporter. (Default: ```false```)
 `--tracing.opentelemetry.path`:  
 Sets the URL path of the collector endpoint.
 
+`--tracing.opentelemetry.enableAWSXrayId`:
+Enables AWS X-ray id generator. (Default: ```false```)
+
 `--tracing.opentelemetry.tls.ca`:  
 TLS CA
 

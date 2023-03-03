@@ -3,13 +3,14 @@ package opentelemetry
 import (
 	"context"
 	"fmt"
+	"github.com/opentracing/opentracing-go"
+	"github.com/rs/zerolog/log"
 	"io"
 	"net"
 
-	"github.com/opentracing/opentracing-go"
-	"github.com/rs/zerolog/log"
 	"github.com/traefik/traefik/v2/pkg/types"
 	"github.com/traefik/traefik/v2/pkg/version"
+	"go.opentelemetry.io/contrib/propagators/aws/xray"
 	"go.opentelemetry.io/otel"
 	oteltracer "go.opentelemetry.io/otel/bridge/opentracing"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
@@ -27,11 +28,12 @@ type Config struct {
 	// NOTE: as no gRPC option is implemented yet, the type is empty and is used as a boolean for upward compatibility purposes.
 	GRPC *struct{} `description:"gRPC specific configuration for the OpenTelemetry collector." json:"grpc,omitempty" toml:"grpc,omitempty" yaml:"grpc,omitempty" export:"true" label:"allowEmpty" file:"allowEmpty"`
 
-	Address  string            `description:"Sets the address (host:port) of the collector endpoint." json:"address,omitempty" toml:"address,omitempty" yaml:"address,omitempty"`
-	Path     string            `description:"Sets the URL path of the collector endpoint." json:"path,omitempty" toml:"path,omitempty" yaml:"path,omitempty" export:"true"`
-	Insecure bool              `description:"Disables client transport security for the exporter." json:"insecure,omitempty" toml:"insecure,omitempty" yaml:"insecure,omitempty" export:"true"`
-	Headers  map[string]string `description:"Defines additional headers to be sent with the payloads." json:"headers,omitempty" toml:"headers,omitempty" yaml:"headers,omitempty" export:"true"`
-	TLS      *types.ClientTLS  `description:"Defines client transport security parameters." json:"tls,omitempty" toml:"tls,omitempty" yaml:"tls,omitempty" export:"true"`
+	Address         string            `description:"Sets the address (host:port) of the collector endpoint." json:"address,omitempty" toml:"address,omitempty" yaml:"address,omitempty"`
+	Path            string            `description:"Sets the URL path of the collector endpoint." json:"path,omitempty" toml:"path,omitempty" yaml:"path,omitempty" export:"true"`
+	Insecure        bool              `description:"Disables client transport security for the exporter." json:"insecure,omitempty" toml:"insecure,omitempty" yaml:"insecure,omitempty" export:"true"`
+	Headers         map[string]string `description:"Defines additional headers to be sent with the payloads." json:"headers,omitempty" toml:"headers,omitempty" yaml:"headers,omitempty" export:"true"`
+	TLS             *types.ClientTLS  `description:"Defines client transport security parameters." json:"tls,omitempty" toml:"tls,omitempty" yaml:"tls,omitempty" export:"true"`
+	EnableAWSXrayId bool              `description:"Enables AWS X-ray id generator." json:"enableAWSXrayId,omitempty" toml:"enableAWSXrayId,omitempty" yaml:"enableAWSXrayId,omitempty" export:"true"`
 }
 
 // SetDefaults sets the default values.
@@ -42,8 +44,9 @@ func (c *Config) SetDefaults() {
 // Setup sets up the tracer.
 func (c *Config) Setup(componentName string) (opentracing.Tracer, io.Closer, error) {
 	var (
-		err      error
-		exporter *otlptrace.Exporter
+		err            error
+		exporter       *otlptrace.Exporter
+		tracerProvider *sdktrace.TracerProvider = nil
 	)
 	if c.GRPC != nil {
 		exporter, err = c.setupGRPCExporter()
@@ -60,7 +63,15 @@ func (c *Config) Setup(componentName string) (opentracing.Tracer, io.Closer, err
 	bt.SetOpenTelemetryTracer(otel.Tracer(componentName, trace.WithInstrumentationVersion(version.Version)))
 	opentracing.SetGlobalTracer(bt)
 
-	tracerProvider := sdktrace.NewTracerProvider(sdktrace.WithBatcher(exporter))
+	if c.EnableAWSXrayId {
+		log.Debug().Msg("OpenTelemetry AWS X-ray id generator configured")
+		idg := xray.NewIDGenerator()
+		tracerProvider = sdktrace.NewTracerProvider(sdktrace.WithBatcher(exporter), sdktrace.WithIDGenerator(idg))
+		otel.SetTextMapPropagator(xray.Propagator{})
+	} else {
+		tracerProvider = sdktrace.NewTracerProvider(sdktrace.WithBatcher(exporter))
+	}
+
 	otel.SetTracerProvider(tracerProvider)
 
 	log.Debug().Msg("OpenTelemetry tracer configured")

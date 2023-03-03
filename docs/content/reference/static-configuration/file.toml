@@ -414,6 +414,7 @@
     address = "foobar"
     insecure = true
     path = "foobar"
+    enableAWSXrayId = true
     [tracing.openTelemetry.headers]
       name0 = "foobar"
       name1 = "foobar"
