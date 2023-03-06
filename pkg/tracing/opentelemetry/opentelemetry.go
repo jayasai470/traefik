@@ -57,20 +57,25 @@ func (c *Config) Setup(componentName string) (opentracing.Tracer, io.Closer, err
 		return nil, nil, fmt.Errorf("setting up exporter: %w", err)
 	}
 
-	bt := oteltracer.NewBridgeTracer()
-	bt.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(propagation.TraceContext{}, propagation.Baggage{}))
-
-	bt.SetOpenTelemetryTracer(otel.Tracer(componentName, trace.WithInstrumentationVersion(version.Version)))
-	opentracing.SetGlobalTracer(bt)
+	propagators := []propagation.TextMapPropagator{
+		propagation.TraceContext{},
+		propagation.Baggage{},
+	}
 
 	if c.EnableAWSXrayId {
 		log.Debug().Msg("OpenTelemetry AWS X-ray id generator configured")
 		idg := xray.NewIDGenerator()
 		tracerProvider = sdktrace.NewTracerProvider(sdktrace.WithBatcher(exporter), sdktrace.WithIDGenerator(idg))
-		otel.SetTextMapPropagator(xray.Propagator{})
+		propagators = append(propagators, xray.Propagator{})
 	} else {
 		tracerProvider = sdktrace.NewTracerProvider(sdktrace.WithBatcher(exporter))
 	}
+
+	bt := oteltracer.NewBridgeTracer()
+	bt.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(propagators...))
+
+	bt.SetOpenTelemetryTracer(otel.Tracer(componentName, trace.WithInstrumentationVersion(version.Version)))
+	opentracing.SetGlobalTracer(bt)
 
 	otel.SetTracerProvider(tracerProvider)
 
